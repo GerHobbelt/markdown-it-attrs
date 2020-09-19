@@ -42,16 +42,16 @@
     "pub": "npm publish --access public"
   },
   "devDependencies": {
-    "@gerhobbelt/markdown-it": "11.0.1-41",
+    "@gerhobbelt/markdown-it": "12.0.0-47",
     "@gerhobbelt/markdown-it-implicit-figures": "0.10.0-6",
-    "@gerhobbelt/markdown-it-testgen": "0.1.6-9",
-    "@gerhobbelt/prepend-header": "1.0.8-3",
+    "@gerhobbelt/markdown-it-testgen": "0.1.6-17",
+    "@gerhobbelt/prepend-header": "1.0.10-4",
     "camelcase": "6.0.0",
     "chai": "4.2.0",
     "cross-env": "7.0.2",
-    "eslint": "7.4.0",
-    "microbundle": "0.12.2",
-    "mocha": "8.0.1",
+    "eslint": "7.9.0",
+    "microbundle": "0.12.3",
+    "mocha": "8.1.3",
     "nyc": "15.1.0"
   },
   "reporter": [

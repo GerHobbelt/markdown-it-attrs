@@ -7547,14 +7547,17 @@ default_rules.fence = function (tokens, idx, options, env, slf) {
   let token = tokens[idx],
       info = token.info ? unescapeAll$2(token.info).trim() : '',
       langName = '',
-      highlighted, i, tmpAttrs, tmpToken;
+      langAttrs = [],
+      highlighted, i, arr, tmpAttrs, tmpToken;
 
   if (info) {
-    langName = info.split(/\s+/g)[0].split(':')[0];
+    arr = info.split(/\s+/g);
+    langName = arr[0];
+    langAttrs = arr.slice(1);
   }
 
   if (options.highlight) {
-    highlighted = options.highlight(token.content, langName, info) || escapeHtml(token.content);
+    highlighted = options.highlight(token.content, langName, [].concat(token.attrs || [], langAttrs)) || escapeHtml(token.content);
   } else {
     highlighted = escapeHtml(token.content);
   }
@@ -8461,7 +8464,7 @@ function process_inlines(tokens, state) {
       } else {
         for (j = i - 1; j >= 0; j--) {
           if (tokens[j].type === 'softbreak' || tokens[j].type === 'hardbreak') break; // lastChar defaults to 0x20
-          if (tokens[j].type !== 'text') continue;
+          if (!tokens[j].content) continue; // should skip all tokens except 'text', 'html_inline' or 'code_inline'
 
           lastChar = tokens[j].content.charCodeAt(tokens[j].content.length - 1);
           break;
@@ -8478,7 +8481,7 @@ function process_inlines(tokens, state) {
       } else {
         for (j = i + 1; j < tokens.length; j++) {
           if (tokens[j].type === 'softbreak' || tokens[j].type === 'hardbreak') break; // nextChar defaults to 0x20
-          if (tokens[j].type !== 'text') continue;
+          if (!tokens[j].content) continue; // should skip all tokens except 'text', 'html_inline' or 'code_inline'
 
           nextChar = tokens[j].content.charCodeAt(0);
           break;
@@ -8915,8 +8918,7 @@ Core.prototype.State = state_core;
 
 var parser_core = Core;
 
-// GFM table, non-standard
-
+// GFM table, https://github.github.com/gfm/#tables-extension-
 
 
 let isSpace = utils.isSpace;
@@ -8935,49 +8937,34 @@ function escapedSplit(str, positions) {
       pos = 0,
       max = str.length,
       ch,
-      escapes = 0,
+      isEscaped = false,
       lastPos = 0,
-      backTicked = false,
-      lastBackTick = 0;
+      current = '';
 
   ch  = str.charCodeAt(pos);
 
   while (pos < max) {
-    if (ch === 0x60/* ` */) {
-      if (backTicked) {
-        // make \` close code sequence, but not open it;
-        // the reason is: `\` is correct code block
-        backTicked = false;
-        lastBackTick = pos;
-      } else if (escapes % 2 === 0) {
-        backTicked = true;
-        lastBackTick = pos;
+    if (ch === 0x7c/* | */) {
+      if (!isEscaped) {
+        // pipe separating cells, '|'
+        result.push(current + str.substring(lastPos, pos));
+        positions.push(lastPos);
+        current = '';
+        lastPos = pos + 1;
+      } else {
+        // escaped pipe, '\|'
+        current += str.substring(lastPos, pos - 1);
+        lastPos = pos;
       }
-    } else if (ch === 0x7c/* | */ && (escapes % 2 === 0) && !backTicked) {
-      result.push(str.substring(lastPos, pos));
-      positions.push(lastPos);
-      lastPos = pos + 1;
     }
 
-    if (ch === 0x5c/* \ */) {
-      escapes++;
-    } else {
-      escapes = 0;
-    }
-
+    isEscaped = (ch === 0x5c/* \ */);
     pos++;
-
-    // If there was an un-closed backtick, go back to just after
-    // the last backtick, but as if it was a normal character
-    if (pos === max && backTicked) {
-      backTicked = false;
-      pos = lastBackTick + 1;
-    }
 
     ch = str.charCodeAt(pos);
   }
 
-  result.push(str.substring(lastPos));
+  result.push(current + str.substring(lastPos));
   positions.push(lastPos);
 
   return result;
@@ -8985,8 +8972,9 @@ function escapedSplit(str, positions) {
 
 
 var table = function table(state, startLine, endLine, silent) {
-  let ch, lineText, lineTextReplaced, pos, i, nextLine, columns, columnCount, token,
-      aligns, t, tableLines, tbodyLines, positions, len, columnVIndex;
+  let ch, lineText, pos, i, l, nextLine, columns, columnCount, token,
+      aligns, t, tableLines, tbodyLines, oldParentType, terminate,
+      terminatorRules, positions, len, columnVIndex;
 
   // should have at least two lines
   if (startLine + 2 > endLine) { return false; }
@@ -9045,17 +9033,30 @@ var table = function table(state, startLine, endLine, silent) {
   lineText = getLine(state, startLine).trim();
   if (lineText.indexOf('|') === -1) { return false; }
   if (state.sCount[startLine] - state.blkIndent >= 4) { return false; }
-  lineTextReplaced = lineText.replace(/^\||\|$/g, '');
-  pos = state.bMarks[startLine] + lineText.indexOf(lineTextReplaced);
   positions = [];
-  columns = escapedSplit(lineTextReplaced, positions);
+  columns = escapedSplit(lineText, positions);
+  if (columns.length && columns[0] === '') {
+    columns.shift();
+    positions.shift();
+  }
+  if (columns.length && columns[columns.length - 1] === '') {
+    columns.pop();
+    positions.pop();
+  }
 
   // header row will define an amount of columns in the entire table,
-  // and align row shouldn't be smaller than that (the rest of the rows can)
+  // and align row should be exactly the same (the rest of the rows can differ)
   columnCount = columns.length;
-  if (columnCount > aligns.length) { return false; }
+  if (columnCount !== aligns.length) { return false; }
 
   if (silent) { return true; }
+
+  oldParentType = state.parentType;
+  state.parentType = 'table';
+
+  // use 'blockquote' lists for termination because it's
+  // the most similar to tables
+  terminatorRules = state.md.block.ruler.getRules('blockquote');
 
   token          = state.push('table_open', 'table', 1);
   token.map      = tableLines = [ startLine, 0 ];
@@ -9094,6 +9095,7 @@ var table = function table(state, startLine, endLine, silent) {
 
     token          = state.push('th_close', 'th', -1);
     token.position = columnVIndex;
+    token.size     = 0;
 
     // Last column?
     if (i === (columns.length - 1)) {
@@ -9110,21 +9112,38 @@ var table = function table(state, startLine, endLine, silent) {
   token.size     = state.eMarks[startLine + 1] - state.bMarks[startLine + 1];
   token.position = state.bMarks[startLine + 1];
 
-  token     = state.push('tbody_open', 'tbody', 1);
-  token.map = tbodyLines = [ startLine + 2, 0 ];
-  token.size     = 0;
-  token.position = state.bMarks[startLine + 2];
-
   for (nextLine = startLine + 2; nextLine < endLine; nextLine++) {
     if (state.sCount[nextLine] < state.blkIndent) { break; }
 
+    terminate = false;
+    for (i = 0, l = terminatorRules.length; i < l; i++) {
+      if (terminatorRules[i](state, nextLine, endLine, true)) {
+        terminate = true;
+        break;
+      }
+    }
+
+    if (terminate) { break; }
     lineText = getLine(state, nextLine).trim();
-    if (lineText.indexOf('|') === -1) { break; }
+    if (!lineText) { break; }
     if (state.sCount[nextLine] - state.blkIndent >= 4) { break; }
-    lineTextReplaced = lineText.replace(/^\||\|$/g, '');
-    pos = state.bMarks[nextLine] + lineText.indexOf(lineTextReplaced);
     positions = [];
-    columns = escapedSplit(lineTextReplaced, positions);
+    columns = escapedSplit(lineText, positions);
+    if (columns.length && columns[0] === '') {
+      columns.shift();
+      positions.shift();
+    }
+    if (columns.length && columns[columns.length - 1] === '') {
+      columns.pop();
+      positions.pop();
+    }
+
+    if (nextLine === startLine + 2) {
+      token     = state.push('tbody_open', 'tbody', 1);
+      token.map = tbodyLines = [ startLine + 2, 0 ];
+      token.size     = 0;
+      token.position = state.bMarks[startLine + 2];
+    }
 
     token = state.push('tr_open', 'tr', 1);
     token.size     = 0;
@@ -9134,6 +9153,7 @@ var table = function table(state, startLine, endLine, silent) {
     len = Math.max(columns.length, columnCount);
     for (i = 0; i < len; i++) {
       token          = state.push('td_open', 'td', 1);
+      token.map      = [ nextLine, nextLine + 1 ];
       token.size     = 1;
       token.position = columnVIndex;
       columnVIndex++;
@@ -9145,6 +9165,7 @@ var table = function table(state, startLine, endLine, silent) {
       let originalContent = columns[i] || '';
 
       token          = state.push('inline', '', 0);
+      token.map      = [ nextLine, nextLine + 1 ];
       token.content  = originalContent.trim();
       token.children = [];
       token.size     = token.content.length;
@@ -9154,6 +9175,7 @@ var table = function table(state, startLine, endLine, silent) {
 
       token          = state.push('td_close', 'td', -1);
       token.position = columnVIndex;
+      token.size     = 0;
 
       // Last column?
       if (i === (columns.length - 1)) {
@@ -9164,15 +9186,20 @@ var table = function table(state, startLine, endLine, silent) {
     token.size     = 0;
     token.position = state.eMarks[nextLine];
   }
-  token = state.push('tbody_close', 'tbody', -1);
-  token.size     = 0;
-  token.position = state.eMarks[nextLine];
+
+  if (tbodyLines) {
+    token = state.push('tbody_close', 'tbody', -1);
+    token.size     = 0;
+    token.position = state.eMarks[nextLine];
+    tbodyLines[1] = nextLine;
+  }
 
   token = state.push('table_close', 'table', -1);
   token.size     = 0;
   token.position = state.eMarks[nextLine];
+  tableLines[1] = nextLine;
 
-  tableLines[1] = tbodyLines[1] = nextLine;
+  state.parentType = oldParentType;
   state.line = nextLine;
   return true;
 };
@@ -9331,6 +9358,7 @@ var blockquote = function blockquote(state, startLine, endLine, silent) {
       ch,
       i,
       initial,
+      blockStart,
       l,
       lastLineEmpty,
       lines,
@@ -9346,7 +9374,7 @@ var blockquote = function blockquote(state, startLine, endLine, silent) {
       terminate,
       terminatorRules,
       token,
-      wasOutdented,
+      isOutdented,
       oldLineMax = state.lineMax,
       pos = state.bMarks[startLine] + state.tShift[startLine],
       max = state.eMarks[startLine];
@@ -9361,8 +9389,11 @@ var blockquote = function blockquote(state, startLine, endLine, silent) {
   // so no point trying to find the end of it in silent mode
   if (silent) { return true; }
 
-  // skip spaces after ">" and re-calculate offset
-  initial = offset = state.sCount[startLine] + pos - (state.bMarks[startLine] + state.tShift[startLine]);
+  // store position for token position/size later on
+  blockStart = pos;
+
+  // set offset past spaces and ">"
+  initial = offset = state.sCount[startLine] + 1;
 
   // skip one optional space after '>'
   if (state.src.charCodeAt(pos) === 0x20 /* space */) {
@@ -9427,7 +9458,6 @@ var blockquote = function blockquote(state, startLine, endLine, silent) {
 
   oldParentType = state.parentType;
   state.parentType = 'blockquote';
-  wasOutdented = false;
 
   // Search the end of the block
   //
@@ -9456,7 +9486,7 @@ var blockquote = function blockquote(state, startLine, endLine, silent) {
     //    > current blockquote
     // 2. checking this line
     // ```
-    if (state.sCount[nextLine] < state.blkIndent) wasOutdented = true;
+    isOutdented = state.sCount[nextLine] < state.blkIndent;
 
     pos = state.bMarks[nextLine] + state.tShift[nextLine];
     max = state.eMarks[nextLine];
@@ -9466,11 +9496,11 @@ var blockquote = function blockquote(state, startLine, endLine, silent) {
       break;
     }
 
-    if (state.src.charCodeAt(pos++) === 0x3E/* > */ && !wasOutdented) {
+    if (state.src.charCodeAt(pos++) === 0x3E/* > */ && !isOutdented) {
       // This line is inside the blockquote.
 
-      // skip spaces after ">" and re-calculate offset
-      initial = offset = state.sCount[nextLine] + pos - (state.bMarks[nextLine] + state.tShift[nextLine]);
+      // set offset past spaces and ">"
+      initial = offset = state.sCount[nextLine] + 1;
 
       // skip one optional space after '>'
       if (state.src.charCodeAt(pos) === 0x20 /* space */) {
@@ -9582,11 +9612,15 @@ var blockquote = function blockquote(state, startLine, endLine, silent) {
   token        = state.push('blockquote_open', 'blockquote', 1);
   token.markup = '>';
   token.map    = lines = [ startLine, 0 ];
+  token.position = blockStart;
+  token.size = pos - blockStart;
 
   state.md.block.tokenize(state, startLine, nextLine);
 
   token        = state.push('blockquote_close', 'blockquote', -1);
   token.markup = '>';
+  token.position = pos;
+  token.size = 0;
 
   state.lineMax = oldLineMax;
   state.parentType = oldParentType;
@@ -9779,6 +9813,7 @@ var list = function list(state, startLine, endLine, silent) {
       posAfterMarker,
       prevEmptyEnd,
       start,
+      blockStart,
       terminate,
       terminatorRules,
       token,
@@ -9812,6 +9847,8 @@ var list = function list(state, startLine, endLine, silent) {
       isTerminatingParagraph = true;
     }
   }
+
+  blockStart = state.bMarks[startLine] + state.tShift[startLine];
 
   // Detect list type and position after marker
   if ((posAfterMarker = skipOrderedListMarker(state, startLine)) >= 0) {
@@ -9850,15 +9887,14 @@ var list = function list(state, startLine, endLine, silent) {
     if (markerValue !== 1) {
       token.attrs = [ [ 'start', markerValue ] ];
     }
-
   } else {
     token       = state.push('bullet_list_open', 'ul', 1);
   }
 
   token.map    = listLines = [ startLine, 0 ];
   token.markup = String.fromCharCode(markerCharCode);
-  token.position = start;
-  token.size   = 0;
+  token.position = blockStart;
+  token.size   = state.eMarks[endLine] - blockStart;
 
   //
   // Iterate list items
@@ -9913,6 +9949,7 @@ var list = function list(state, startLine, endLine, silent) {
     token.markup = String.fromCharCode(markerCharCode);
     token.map    = itemLines = [ startLine, 0 ];
     token.position = contentStart;
+    token.size = 0;
 
     // change current state, then restore it after parser subcall
     oldTight = state.tight;
@@ -9960,6 +9997,8 @@ var list = function list(state, startLine, endLine, silent) {
 
     token        = state.push('list_item_close', 'li', -1);
     token.markup = String.fromCharCode(markerCharCode);
+    token.position = state.bMarks[state.line];
+    token.size = 0;
 
     nextLine = startLine = state.line;
     itemLines[1] = nextLine;
@@ -10004,6 +10043,8 @@ var list = function list(state, startLine, endLine, silent) {
     token = state.push('bullet_list_close', 'ul', -1);
   }
   token.markup = String.fromCharCode(markerCharCode);
+  token.position = state.bMarks[nextLine];
+  token.size = 0;
 
   listLines[1] = nextLine;
   state.line = nextLine;
@@ -10500,7 +10541,8 @@ let HTML_SEQUENCES = [
 
 var html_block = function html_block(state, startLine, endLine, silent) {
   let i, nextLine, token, lineText,
-      pos = state.bMarks[startLine] + state.tShift[startLine],
+      blockStart,
+      pos = blockStart = state.bMarks[startLine] + state.tShift[startLine],
       max = state.eMarks[startLine];
 
   // if it's indented more than 3 spaces, it should be a code block
@@ -10547,6 +10589,8 @@ var html_block = function html_block(state, startLine, endLine, silent) {
   token         = state.push('html_block', '', 0);
   token.map     = [ startLine, nextLine ];
   token.content = state.getLines(startLine, nextLine, state.blkIndent, true);
+  token.position = blockStart;
+  token.size = state.bMarks[nextLine] - blockStart;
 
   return true;
 };
@@ -11010,6 +11054,7 @@ var tokenize = function linkify(state, silent) {
     token.attrs   = [ [ 'href', fullUrl ] ];
     token.markup  = 'linkify';
     token.info    = 'auto';
+    // TODO: position + size
 
     token         = state.push('text', '', 0);
     token.content = urlText;
@@ -11017,6 +11062,8 @@ var tokenize = function linkify(state, silent) {
     token         = state.push('link_close', 'a', -1);
     token.markup  = 'linkify';
     token.info    = 'auto';
+    token.position = link.lastIndex;
+    token.size = 0;
   }
 
   state.pos = link.lastIndex;
@@ -11164,7 +11211,7 @@ var text = function text(state, silent) {
   return true;
 };
 
-// Proceess '\n'
+// Process '\n'
 
 
 
@@ -11184,17 +11231,20 @@ var newline = function newline(state, silent) {
   // Pending string is stored in concat mode, indexed lookups will cause
   // convertion to flat mode.
   if (!silent) {
+    let token;
     if (pmax >= 0 && state.pending.charCodeAt(pmax) === 0x20) {
       if (pmax >= 1 && state.pending.charCodeAt(pmax - 1) === 0x20) {
         state.pending = state.pending.replace(/ +$/, '');
-        state.push('hardbreak', 'br', 0);
+        token = state.push('hardbreak', 'br', 0);
       } else {
         state.pending = state.pending.slice(0, -1);
-        state.push('softbreak', 'br', 0);
+        token = state.push('softbreak', 'br', 0);
       }
     } else {
-      state.push('softbreak', 'br', 0);
+      token = state.push('softbreak', 'br', 0);
     }
+    token.position = pos;
+    token.size = 1;
   }
 
   pos++;
@@ -11238,7 +11288,9 @@ var _escape = function escape(state, silent) {
 
     if (ch === 0x0A) {
       if (!silent) {
-        state.push('hardbreak', 'br', 0);
+        let token = state.push('hardbreak', 'br', 0);
+        token.position = pos;
+        token.size = 1;
       }
 
       pos++;
@@ -11315,7 +11367,7 @@ let getLineOffset  = utils.getLineOffset;
 // Insert each marker as a separate text token, and add it to delimiter list
 //
 var tokenize$1 = function strikethrough(state, silent) {
-  let i, scanned, token, len, ch,
+  let i, scanned, token, len, ch, offset,
       start = state.pos,
       marker = state.src.charCodeAt(start);
 
@@ -11329,15 +11381,21 @@ var tokenize$1 = function strikethrough(state, silent) {
 
   if (len < 2) { return false; }
 
+  offset = 0;
   if (len % 2) {
     token         = state.push('text', '', 0);
     token.content = ch;
+    token.position = start;
+    token.size = 1;
+    offset = 1;
     len--;
   }
 
   for (i = 0; i < len; i += 2) {
     token         = state.push('text', '', 0);
     token.content = ch + ch;
+    token.position = start + i + offset;
+    token.size = 2;
 
     state.delimiters.push({
       marker: marker,
@@ -11469,6 +11527,8 @@ var tokenize$2 = function emphasis(state, silent) {
   for (i = 0; i < scanned.length; i++) {
     token         = state.push('text', '', 0);
     token.content = String.fromCharCode(marker);
+    token.position = state.pos;
+    token.size = token.content.length;
 
     state.delimiters.push({
       position: state.pos,
@@ -11730,6 +11790,8 @@ var link = function link(state, silent) {
     state.posMax = labelEnd;
 
     token        = state.push('link_open', 'a', 1);
+    token.position = labelStart - 1;
+    token.size = pos - token.position;
     token.attrs  = attrs = [ [ 'href', href ] ];
     if (title) {
       attrs.push([ 'title', title ]);
@@ -11738,6 +11800,8 @@ var link = function link(state, silent) {
     state.md.inline.tokenize(state, labelStart);
 
     token        = state.push('link_close', 'a', -1);
+    token.position = pos;
+    token.size = 0;
   }
 
   state.pos = pos;
@@ -11933,6 +11997,7 @@ var autolink = function autolink(state, silent) {
   if (AUTOLINK_RE.test(tail)) {
     linkMatch = tail.match(AUTOLINK_RE);
 
+    let matchLen = linkMatch[0].length;
     url = linkMatch[0].slice(1, -1);
     fullUrl = state.md.normalizeLink(url);
     if (!state.md.validateLink(fullUrl)) { return false; }
@@ -11942,6 +12007,8 @@ var autolink = function autolink(state, silent) {
       token.attrs   = [ [ 'href', fullUrl ] ];
       token.markup  = 'autolink';
       token.info    = 'auto';
+      token.position = pos;
+      token.size = matchLen;
 
       token         = state.push('text', '', 0);
       token.content = state.md.normalizeLinkText(url);
@@ -11951,15 +12018,18 @@ var autolink = function autolink(state, silent) {
       token         = state.push('link_close', 'a', -1);
       token.markup  = 'autolink';
       token.info    = 'auto';
+      token.position = pos + matchLen;
+      token.size = 0;
     }
 
-    state.pos += linkMatch[0].length;
+    state.pos += matchLen;
     return true;
   }
 
   if (EMAIL_RE.test(tail)) {
     emailMatch = tail.match(EMAIL_RE);
 
+    let matchLen = emailMatch[0].length;
     url = emailMatch[0].slice(1, -1);
     fullUrl = state.md.normalizeLink('mailto:' + url);
     if (!state.md.validateLink(fullUrl)) { return false; }
@@ -11969,6 +12039,8 @@ var autolink = function autolink(state, silent) {
       token.attrs   = [ [ 'href', fullUrl ] ];
       token.markup  = 'autolink';
       token.info    = 'auto';
+      token.position = pos;
+      token.size = matchLen;
 
       token         = state.push('text', '', 0);
       token.content = state.md.normalizeLinkText(url);
@@ -11978,9 +12050,11 @@ var autolink = function autolink(state, silent) {
       token         = state.push('link_close', 'a', -1);
       token.markup  = 'autolink';
       token.info    = 'auto';
+      token.position = pos + matchLen;
+      token.size = 0;
     }
 
-    state.pos += emailMatch[0].length;
+    state.pos += matchLen;
     return true;
   }
 
@@ -12030,6 +12104,8 @@ var html_inline = function html_inline(state, silent) {
   if (!silent) {
     token         = state.push('html_inline', '', 0);
     token.content = state.src.slice(pos, pos + match[0].length);
+    token.position = state.pos;
+    token.size = match[0].length;
   }
   state.pos += match[0].length;
   return true;
@@ -12124,9 +12200,7 @@ function processDelimiters(state, delimiters) {
 
       if (newMinOpenerIdx === -1) newMinOpenerIdx = openerIdx;
 
-      if (opener.open &&
-          opener.end < 0 &&
-          opener.level === closer.level) {
+      if (opener.open && opener.end < 0) {
 
         isOddMatch = false;
 
@@ -14138,7 +14212,7 @@ let config = {
 //
 
 let BAD_PROTO_RE = /^(vbscript|javascript|file|data):/;
-let GOOD_DATA_RE = /^data:image\/(gif|png|jpeg|webp);/;
+let GOOD_DATA_RE = /^data:image\/(gif|png|jpeg|webp|svg\+xml);/;
 
 function validateLink(url) {
   // url should be normalized at this point, and existing entities are decoded
@@ -14274,7 +14348,7 @@ function normalizeLinkText(url) {
  *   use `'«»„“'` for Russian, `'„“‚‘'` for German, and
  *   `['«\xA0', '\xA0»', '‹\xA0', '\xA0›']` for French (including nbsp).
  * - __highlight__ - `null`. Highlighter function for fenced code blocks.
- *   Highlighter `function (str, lang)` should return escaped HTML. It can also
+ *   Highlighter `function (str, lang, attrs)` should return escaped HTML. It can also
  *   return empty string if the source was not changed and should be escaped
  *   externaly. If result starts with <pre... internal wrapper is skipped.
  *
@@ -14301,7 +14375,7 @@ function normalizeLinkText(url) {
  * var hljs = require('highlight.js') // https://highlightjs.org/
  *
  * var md = require('markdown-it')({
- *   highlight: function (str, lang) {
+ *   highlight: function (str, lang, attrs) {
  *     if (lang && hljs.getLanguage(lang)) {
  *       try {
  *         return hljs.highlight(lang, str, true).value;
@@ -14320,7 +14394,7 @@ function normalizeLinkText(url) {
  *
  * // Actual default values
  * var md = require('markdown-it')({
- *   highlight: function (str, lang) {
+ *   highlight: function (str, lang, attrs) {
  *     if (lang && hljs.getLanguage(lang)) {
  *       try {
  *         return '<pre class="hljs"><code>' +
