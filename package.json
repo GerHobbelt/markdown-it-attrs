@@ -22,7 +22,6 @@
   },
   "repository": "GerHobbelt/markdown-it-attrs",
   "license": "MIT",
-  "type": "module",
   "source": "index.js",
   "main": "dist/markdownItAttrs.js",
   "module": "dist/markdownItAttrs.mjs",
