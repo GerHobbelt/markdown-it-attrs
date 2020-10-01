@@ -3,6 +3,7 @@ node_js:
  - 'lts/*'
  - 10
  - 12
+ - 14
  - node
 script: npm run build
 sudo: false
