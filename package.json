@@ -24,11 +24,11 @@
   "license": "MIT",
   "type": "module",
   "source": "index.js",
-  "main": "dist/markdownItAttrs.cjs",
-  "module": "dist/markdownItAttrs.mjs",
-  "exports": "dist/markdownItAttrs.modern.js",
-  "unpkg": "dist/markdownItAttrs.umd.js",
-  "umd:main": "dist/markdownItAttrs.umd.js",
+  "main": "./dist/markdownItAttrs.cjs",
+  "module": "./dist/markdownItAttrs.mjs",
+  "exports": "./dist/markdownItAttrs.modern.js",
+  "unpkg": "./dist/markdownItAttrs.umd.js",
+  "umd:main": "./dist/markdownItAttrs.umd.js",
   "engines": {
     "node": ">=12.21"
   },
