@@ -1,6 +1,6 @@
 {
   "name": "@gerhobbelt/markdown-it-attrs",
-  "version": "3.0.3-21",
+  "version": "4.0.0-21",
   "description": "Add classes, identifiers and attributes to your markdown with {} curly brackets, similar to pandoc's header attributes",
   "keywords": [
     "commonmark",
