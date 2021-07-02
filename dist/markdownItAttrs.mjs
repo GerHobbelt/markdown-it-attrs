@@ -1,4 +1,4 @@
-/*! markdown-it-attrs 3.0.3-21 https://github.com//GerHobbelt/markdown-it-attrs @license MIT */
+/*! markdown-it-attrs 4.0.0-21 https://github.com//GerHobbelt/markdown-it-attrs @license MIT */
 
 /**
  * parse {.class #id key=val} strings
@@ -325,6 +325,7 @@ function patternsConfig(options) {
      * | h1 |
      * | -- |
      * | c1 |
+     *
      * {.c}
      */
     name: 'tables',

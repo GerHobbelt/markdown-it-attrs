@@ -1,12 +1,11 @@
-/* eslint-env es6 */
-const md = require('@gerhobbelt/markdown-it')();
-const markdownItAttrs = require('../');
-const assert = require('assert');
+import assert from 'assert';
+import Md from '@gerhobbelt/markdown-it';
+import attrs from '../index.js';
 
-md.use(markdownItAttrs, {
+const md = Md().use(attrs, {
   leftDelimiter: '{{',
   rightDelimiter: '}}'
-}).use(require('@gerhobbelt/markdown-it-implicit-figures'));
+});
 
 const src = 'asdf *asd*{{.c}} khg';
 

@@ -289,8 +289,8 @@ function describeTestsWithOptions(options, postText) {
       expected += '</thead>\n';
       expected += '<tbody>\n';
       expected += '<tr>\n';
-      expected += '<td>c1</td>\n';
-      expected += '<td>c1</td>\n';
+      expected += '<td data-label="h1">c1</td>\n';
+      expected += '<td data-label="h2">c1</td>\n';
       expected += '</tr>\n';
       expected += '</tbody>\n';
       expected += '</table>\n';

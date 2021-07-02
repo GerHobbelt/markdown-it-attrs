@@ -15,7 +15,7 @@ CURR_HEAD   := $(firstword $(shell git show-ref --hash HEAD | cut -b -6) master)
 GITHUB_PROJ := https://github.com//GerHobbelt/${NPM_PACKAGE}
 
 
-build: report-config lintfix bundle test coverage todo
+build: report-config lintfix bundle test coverage demo debugdemo todo
 
 lint:
 	eslint . --ext .js,.ts
@@ -38,7 +38,7 @@ test:
 coverage:
 	-rm -rf coverage
 	-rm -rf .nyc_output
-	cross-env NODE_ENV=test nyc mocha test/test5.js
+	cross-env NODE_ENV=test nyc mocha 
 
 report-coverage: lint coverage
 

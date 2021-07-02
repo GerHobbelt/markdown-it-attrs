@@ -1,9 +1,10 @@
-const md = require('@gerhobbelt/markdown-it')();
-//let markdownItAttrs = require('markdown-it-attrs');
-const markdownItAttrs = require('../');
-const assert = require('assert');
+import assert from 'assert';
+import Md from '@gerhobbelt/markdown-it';
+import attrs from '../index.js';
 
-md.use(markdownItAttrs);
+const md = Md().use(attrs, {
+  // allowedAttributes: ...
+});
 
 let src = '# header {.style-me}\n';
 src += 'paragraph {data-toggle=modal}';
