@@ -8,9 +8,9 @@ md.use(markdownItAttrs, {
   rightDelimiter: '}}'
 }).use(require('@gerhobbelt/markdown-it-implicit-figures'));
 
-let src = 'asdf *asd*{{.c}} khg';
+const src = 'asdf *asd*{{.c}} khg';
 
-let res = md.render(src);
+const res = md.render(src);
 
 console.log(res);  // eslint-disable-line
 

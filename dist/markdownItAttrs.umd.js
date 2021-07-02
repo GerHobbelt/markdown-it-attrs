@@ -36,7 +36,7 @@
         break;
       }
 
-      let char_ = str.charAt(i); // switch to reading value if equal sign
+      const char_ = str.charAt(i); // switch to reading value if equal sign
 
       if (char_ === keySeparator && parsingKey) {
         parsingKey = false;
@@ -103,9 +103,9 @@
     }
 
     if (options.allowedAttributes && options.allowedAttributes.length) {
-      let allowedAttributes = options.allowedAttributes;
+      const allowedAttributes = options.allowedAttributes;
       return attrs.filter(function (attrPair) {
-        let attr = attrPair[0];
+        const attr = attrPair[0];
 
         function isAllowedAttribute(allowedAttribute) {
           return attr === allowedAttribute || allowedAttribute instanceof RegExp && allowedAttribute.test(attr);
@@ -127,7 +127,7 @@
 
   function addAttrs(attrs, token) {
     for (let j = 0, l = attrs.length; j < l; ++j) {
-      let key = attrs[j][0];
+      const key = attrs[j][0];
 
       if (key === 'class') {
         token.attrJoin('class', attrs[j][1]);
@@ -165,20 +165,20 @@
 
     return function (str) {
       // we need minimum three chars, for example {b}
-      let minCurlyLength = options.leftDelimiter.length + 1 + options.rightDelimiter.length;
+      const minCurlyLength = options.leftDelimiter.length + 1 + options.rightDelimiter.length;
 
       if (!str || typeof str !== 'string' || str.length < minCurlyLength) {
         return false;
       }
 
       function validCurlyLength(curly) {
-        let isClass = curly.charAt(options.leftDelimiter.length) === '.';
-        let isId = curly.charAt(options.leftDelimiter.length) === '#';
+        const isClass = curly.charAt(options.leftDelimiter.length) === '.';
+        const isId = curly.charAt(options.leftDelimiter.length) === '#';
         return isClass || isId ? curly.length >= minCurlyLength + 1 : curly.length >= minCurlyLength;
       }
 
       let start, end, slice, nextChar;
-      let rightDelimiterMinimumShift = minCurlyLength - options.rightDelimiter.length;
+      const rightDelimiterMinimumShift = minCurlyLength - options.rightDelimiter.length;
 
       switch (where) {
         case 'start':
@@ -222,8 +222,8 @@
   function removeDelimiter(str, options) {
     const start = escapeRegExp(options.leftDelimiter);
     const end = escapeRegExp(options.rightDelimiter);
-    let curly = new RegExp('[ \\n]?' + start + '[^' + start + end + ']+' + end + '$');
-    let pos = str.search(curly);
+    const curly = new RegExp('[ \\n]?' + start + '[^' + start + end + ']+' + end + '$');
+    const pos = str.search(curly);
     return pos !== -1 ? str.slice(0, pos) : str;
   }
   /**
@@ -253,8 +253,8 @@
       return tokens[i];
     }
 
-    let level = tokens[i].level;
-    let type = tokens[i].type.replace('_close', '_open');
+    const level = tokens[i].level;
+    const type = tokens[i].type.replace('_close', '_open');
 
     for (; i >= 0; --i) {
       if (tokens[i].type === type && tokens[i].level === level) {
@@ -287,9 +287,9 @@
         info: hasDelimiters('end', options)
       }],
       transform: (tokens, i) => {
-        let token = tokens[i];
-        let start = token.info.lastIndexOf(options.leftDelimiter);
-        let attrs = getAttrs(token.info, start, options);
+        const token = tokens[i];
+        const start = token.info.lastIndexOf(options.leftDelimiter);
+        const attrs = getAttrs(token.info, start, options);
         addAttrs(attrs, token);
         token.info = removeDelimiter(token.info, options);
       }
@@ -314,10 +314,10 @@
         }]
       }],
       transform: (tokens, i, j) => {
-        let token = tokens[i].children[j];
-        let endChar = token.content.indexOf(options.rightDelimiter);
-        let attrToken = tokens[i].children[j - 1];
-        let attrs = getAttrs(token.content, 0, options);
+        const token = tokens[i].children[j];
+        const endChar = token.content.indexOf(options.rightDelimiter);
+        const attrToken = tokens[i].children[j - 1];
+        const attrs = getAttrs(token.content, 0, options);
         addAttrs(attrs, attrToken);
 
         if (token.content.length === endChar + options.rightDelimiter.length) {
@@ -348,9 +348,9 @@
         content: hasDelimiters('only', options)
       }],
       transform: (tokens, i) => {
-        let token = tokens[i + 2];
-        let tableOpen = getMatchingOpeningToken(tokens, i);
-        let attrs = getAttrs(token.content, 0, options); // add attributes
+        const token = tokens[i + 2];
+        const tableOpen = getMatchingOpeningToken(tokens, i);
+        const attrs = getAttrs(token.content, 0, options); // add attributes
 
         addAttrs(attrs, tableOpen); // remove <p>{.c}</p>
 
@@ -375,10 +375,10 @@
         }]
       }],
       transform: (tokens, i, j) => {
-        let token = tokens[i].children[j];
-        let content = token.content;
-        let attrs = getAttrs(content, 0, options);
-        let openingToken = getMatchingOpeningToken(tokens[i].children, j - 1);
+        const token = tokens[i].children[j];
+        const content = token.content;
+        const attrs = getAttrs(content, 0, options);
+        const openingToken = getMatchingOpeningToken(tokens[i].children, j - 1);
         addAttrs(attrs, openingToken);
         token.content = content.slice(content.indexOf(options.rightDelimiter) + options.rightDelimiter.length);
       }
@@ -404,9 +404,9 @@
         }]
       }],
       transform: (tokens, i, j) => {
-        let token = tokens[i].children[j];
-        let content = token.content;
-        let attrs = getAttrs(content, 0, options);
+        const token = tokens[i].children[j];
+        const content = token.content;
+        const attrs = getAttrs(content, 0, options);
         let ii = i - 2;
 
         while (tokens[ii - 1] && tokens[ii - 1].type !== 'ordered_list_open' && tokens[ii - 1].type !== 'bullet_list_open') {
@@ -443,10 +443,10 @@
         type: 'paragraph_close'
       }],
       transform: (tokens, i) => {
-        let token = tokens[i + 2];
-        let content = token.content;
-        let attrs = getAttrs(content, 0, options);
-        let openingToken = getMatchingOpeningToken(tokens, i);
+        const token = tokens[i + 2];
+        const content = token.content;
+        const attrs = getAttrs(content, 0, options);
+        const openingToken = getMatchingOpeningToken(tokens, i);
         addAttrs(attrs, openingToken);
         tokens.splice(i + 1, 3);
       }
@@ -468,11 +468,11 @@
         }]
       }],
       transform: (tokens, i, j) => {
-        let token = tokens[i].children[j];
-        let content = token.content;
-        let attrs = getAttrs(content, content.lastIndexOf(options.leftDelimiter), options);
+        const token = tokens[i].children[j];
+        const content = token.content;
+        const attrs = getAttrs(content, content.lastIndexOf(options.leftDelimiter), options);
         addAttrs(attrs, tokens[i - 2]);
-        let trimmed = content.slice(0, content.lastIndexOf(options.leftDelimiter));
+        const trimmed = content.slice(0, content.lastIndexOf(options.leftDelimiter));
         token.content = last(trimmed) !== ' ' ? trimmed : trimmed.slice(0, -1);
       }
     }, {
@@ -494,8 +494,8 @@
         }]
       }],
       transform: (tokens, i, j) => {
-        let token = tokens[i].children[j];
-        let attrs = getAttrs(token.content, 0, options); // find last closing tag
+        const token = tokens[i].children[j];
+        const attrs = getAttrs(token.content, 0, options); // find last closing tag
 
         let ii = i + 1;
 
@@ -503,7 +503,7 @@
           ii++;
         }
 
-        let openingToken = getMatchingOpeningToken(tokens, ii);
+        const openingToken = getMatchingOpeningToken(tokens, ii);
         addAttrs(attrs, openingToken);
         tokens[i].children = tokens[i].children.slice(0, -2);
       }
@@ -525,12 +525,12 @@
         type: 'paragraph_close'
       }],
       transform: (tokens, i) => {
-        let token = tokens[i];
+        const token = tokens[i];
         token.type = 'hr';
         token.tag = 'hr';
         token.nesting = 0;
-        let content = tokens[i + 1].content;
-        let start = content.lastIndexOf(options.leftDelimiter);
+        const content = tokens[i + 1].content;
+        const start = content.lastIndexOf(options.leftDelimiter);
         token.attrs = getAttrs(content, start, options);
         token.markup = content;
         tokens.splice(i + 1, 2);
@@ -550,18 +550,18 @@
         }]
       }],
       transform: (tokens, i, j) => {
-        let token = tokens[i].children[j];
-        let content = token.content;
-        let attrs = getAttrs(content, content.lastIndexOf(options.leftDelimiter), options);
+        const token = tokens[i].children[j];
+        const content = token.content;
+        const attrs = getAttrs(content, content.lastIndexOf(options.leftDelimiter), options);
         let ii = i + 1;
 
         while (tokens[ii + 1] && tokens[ii + 1].nesting === -1) {
           ii++;
         }
 
-        let openingToken = getMatchingOpeningToken(tokens, ii);
+        const openingToken = getMatchingOpeningToken(tokens, ii);
         addAttrs(attrs, openingToken);
-        let trimmed = content.slice(0, content.lastIndexOf(options.leftDelimiter));
+        const trimmed = content.slice(0, content.lastIndexOf(options.leftDelimiter));
         token.content = last(trimmed) !== ' ' ? trimmed : trimmed.slice(0, -1);
       }
     }];
@@ -586,15 +586,15 @@
     const patterns = patternsConfig(options);
 
     function curlyAttrs(state) {
-      let tokens = state.tokens;
+      const tokens = state.tokens;
 
       for (let i = 0; i < tokens.length; i++) {
         for (let p = 0; p < patterns.length; p++) {
-          let pattern = patterns[p];
+          const pattern = patterns[p];
           let j = null; // position of child with offset 0
 
-          let match = pattern.tests.every(t => {
-            let res = test(tokens, i, t, options);
+          const match = pattern.tests.every(t => {
+            const res = test(tokens, i, t, options);
 
             if (res.j !== null) {
               j = res.j;
@@ -628,20 +628,20 @@
 
 
   function test(tokens, i, t, options) {
-    let res = {
+    const res = {
       match: false,
       j: null // position of child
 
     };
-    let ii = t.shift !== undefined ? i + t.shift : t.position;
-    let token = get(tokens, ii); // supports negative ii
+    const ii = t.shift !== undefined ? i + t.shift : t.position;
+    const token = get(tokens, ii); // supports negative ii
     // supports ignore token
 
     if (token === undefined || options.ignore && options.ignore(token)) {
       return res;
     }
 
-    for (let key in t) {
+    for (const key in t) {
       if (key === 'shift' || key === 'position') {
         continue;
       }
@@ -656,8 +656,8 @@
         }
 
         let match;
-        let childTests = t.children;
-        let children = token.children;
+        const childTests = t.children;
+        const children = token.children;
 
         if (childTests.every(tt => tt.position !== undefined)) {
           // positions instead of shifts, do not loop all children
@@ -665,7 +665,7 @@
 
           if (match) {
             // we may need position of child in transform
-            let j = last$1(childTests).position;
+            const j = last$1(childTests).position;
             res.j = j >= 0 ? j : children.length + j;
           }
         } else {
@@ -706,7 +706,7 @@
 
         case 'object':
           if (isArrayOfFunctions(t[key])) {
-            let r = t[key].every(tt => tt(token[key]));
+            const r = t[key].every(tt => tt(token[key]));
 
             if (r === false) {
               return res;

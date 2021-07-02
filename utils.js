@@ -27,7 +27,7 @@ function getAttrs(str, start, options) {
       if (key !== '') { attrs.push([ key, value ]); }
       break;
     }
-    let char_ = str.charAt(i);
+    const char_ = str.charAt(i);
 
     // switch to reading value if equal sign
     if (char_ === keySeparator && parsingKey) {
@@ -91,10 +91,10 @@ function getAttrs(str, start, options) {
   }
 
   if (options.allowedAttributes && options.allowedAttributes.length) {
-    let allowedAttributes = options.allowedAttributes;
+    const allowedAttributes = options.allowedAttributes;
 
     return attrs.filter(function (attrPair) {
-      let attr = attrPair[0];
+      const attr = attrPair[0];
 
       function isAllowedAttribute(allowedAttribute) {
         return (attr === allowedAttribute
@@ -117,7 +117,7 @@ function getAttrs(str, start, options) {
  */
 function addAttrs(attrs, token) {
   for (let j = 0, l = attrs.length; j < l; ++j) {
-    let key = attrs[j][0];
+    const key = attrs[j][0];
     if (key === 'class') {
       token.attrJoin('class', attrs[j][1]);
     } else if (key === 'css-module') {
@@ -151,21 +151,21 @@ function hasDelimiters(where, options) {
    */
   return function (str) {
     // we need minimum three chars, for example {b}
-    let minCurlyLength = options.leftDelimiter.length + 1 + options.rightDelimiter.length;
+    const minCurlyLength = options.leftDelimiter.length + 1 + options.rightDelimiter.length;
     if (!str || typeof str !== 'string' || str.length < minCurlyLength) {
       return false;
     }
 
     function validCurlyLength(curly) {
-      let isClass = curly.charAt(options.leftDelimiter.length) === '.';
-      let isId = curly.charAt(options.leftDelimiter.length) === '#';
+      const isClass = curly.charAt(options.leftDelimiter.length) === '.';
+      const isId = curly.charAt(options.leftDelimiter.length) === '#';
       return (isClass || isId)
         ? curly.length >= (minCurlyLength + 1)
         : curly.length >= minCurlyLength;
     }
 
     let start, end, slice, nextChar;
-    let rightDelimiterMinimumShift = minCurlyLength - options.rightDelimiter.length;
+    const rightDelimiterMinimumShift = minCurlyLength - options.rightDelimiter.length;
     switch (where) {
     case 'start':
       // first char should be {, } found in char 2 or more
@@ -206,10 +206,10 @@ function removeDelimiter(str, options) {
   const start = escapeRegExp(options.leftDelimiter);
   const end = escapeRegExp(options.rightDelimiter);
 
-  let curly = new RegExp(
+  const curly = new RegExp(
     '[ \\n]?' + start + '[^' + start + end + ']+' + end + '$'
   );
-  let pos = str.search(curly);
+  const pos = str.search(curly);
 
   return pos !== -1 ? str.slice(0, pos) : str;
 }
@@ -237,8 +237,8 @@ function getMatchingOpeningToken(tokens, i) {
     return tokens[i];
   }
 
-  let level = tokens[i].level;
-  let type = tokens[i].type.replace('_close', '_open');
+  const level = tokens[i].level;
+  const type = tokens[i].type.replace('_close', '_open');
 
   for (; i >= 0; --i) {
     if (tokens[i].type === type && tokens[i].level === level) {
@@ -252,9 +252,9 @@ function getMatchingOpeningToken(tokens, i) {
 /**
  * from https://github.com/markdown-it/markdown-it/blob/master/lib/common/utils.js
  */
-let HTML_ESCAPE_TEST_RE = /[&<>"]/;
-let HTML_ESCAPE_REPLACE_RE = /[&<>"]/g;
-let HTML_REPLACEMENTS = {
+const HTML_ESCAPE_TEST_RE = /[&<>"]/;
+const HTML_ESCAPE_REPLACE_RE = /[&<>"]/g;
+const HTML_REPLACEMENTS = {
   '&': '&amp;',
   '<': '&lt;',
   '>': '&gt;',

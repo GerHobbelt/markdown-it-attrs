@@ -1,10 +1,10 @@
 PATH        := ./node_modules/.bin:${PATH}
 
-NPM_PACKAGE := $(shell support/getGlobalName.js package)
-NPM_VERSION := $(shell support/getGlobalName.js version)
+NPM_PACKAGE := $(shell node support/getGlobalName.js package)
+NPM_VERSION := $(shell node support/getGlobalName.js version)
 
-GLOBAL_NAME := $(shell support/getGlobalName.js global)
-BUNDLE_NAME := $(shell support/getGlobalName.js microbundle)
+GLOBAL_NAME := $(shell node support/getGlobalName.js global)
+BUNDLE_NAME := $(shell node support/getGlobalName.js microbundle)
 
 TMP_PATH    := /tmp/${NPM_PACKAGE}-$(shell date +%s)
 
@@ -15,13 +15,13 @@ CURR_HEAD   := $(firstword $(shell git show-ref --hash HEAD | cut -b -6) master)
 GITHUB_PROJ := https://github.com//GerHobbelt/${NPM_PACKAGE}
 
 
-build: lintfix bundle test coverage todo 
+build: report-config lintfix bundle test coverage todo
 
 lint:
-	eslint .
+	eslint . --ext .js,.ts
 
 lintfix:
-	eslint --fix .
+	eslint --fix . --ext .js,.ts
 
 bundle:
 	-rm -rf ./dist
@@ -30,14 +30,10 @@ bundle:
 	mkdir dist/utils
 	microbundle --no-compress --target node --strict --name utils          --no-sourcemap --no-pkg-main -f cjs -o dist/utils ./utils.js
 	mv dist/utils/markdown-it-attrs.js dist/utils/utils.js
-	microbundle --no-compress --target node --strict --name test           --no-sourcemap --no-pkg-main -f cjs -o test test/test.js
-	mv test/markdown-it-attrs.js test/test5.js
 	npx prepend-header 'dist/*js' support/header.js
 
 test:
-	# mocha
-	# kludgy way to execute the tests: `make build` compiles the tests to CommonJS in test5.js, then we execute those instead:
-	mocha test/test5.js
+	mocha
 
 coverage:
 	-rm -rf coverage
@@ -88,8 +84,20 @@ superclean: clean
 prep: superclean
 	-ncu -a --packageFile=package.json
 	-npm install
+	-npm prune
 	-npm audit fix
 
+prep-ci: clean
+	-rm -rf ./node_modules/
+	-npm ci
+	-npm prune
+	-npm audit fix
+	-mocha --version
+	-node --version
 
-.PHONY: demo debugdemo clean superclean prep publish lint lintfix test todo coverage report-coverage doc build gh-doc bundle
-.SILENT: help lint test todo
+report-config:
+	-echo "NPM_PACKAGE=${NPM_PACKAGE} NPM_VERSION=${NPM_VERSION} GLOBAL_NAME=${GLOBAL_NAME} BUNDLE_NAME=${BUNDLE_NAME} TMP_PATH=${TMP_PATH} REMOTE_NAME=${REMOTE_NAME} REMOTE_REPO=${REMOTE_REPO} CURR_HEAD=${CURR_HEAD}"
+
+
+.PHONY: demo debugdemo clean superclean prep prep-ci report-config publish lint lintfix test todo coverage report-coverage doc build gh-doc bundle
+.SILENT: help lint test todo todo report-config

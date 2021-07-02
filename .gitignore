@@ -3,7 +3,9 @@
 # Then hand-patched to suit us.
 
 # OS X crap
-.DS_Store
+.DS_Store*
+Icon?
+._*
 
 # Windows
 Thumbs.db
@@ -13,6 +15,11 @@ Desktop.ini
 ### Linux ###
 *~
 
+# Archives
+*.gz
+*.zip
+*.rar
+*.7z
 
 # KDE directory preferences
 .directory
@@ -56,6 +63,10 @@ coverage
 
 # nyc test coverage
 .nyc_output
+
+# Profiling output (old and new (Chrome DevTools) style:
+*.cpuprofile
+*.log
 
 # Grunt intermediate storage (https://gruntjs.com/creating-plugins#storing-task-files)
 .grunt

@@ -1,6 +1,6 @@
-let md = require('@gerhobbelt/markdown-it')();
+const md = require('@gerhobbelt/markdown-it')();
 //let markdownItAttrs = require('markdown-it-attrs');
-let markdownItAttrs = require('../');
+const markdownItAttrs = require('../');
 const assert = require('assert');
 
 md.use(markdownItAttrs);
@@ -8,7 +8,7 @@ md.use(markdownItAttrs);
 let src = '# header {.style-me}\n';
 src += 'paragraph {data-toggle=modal}';
 
-let res = md.render(src);
+const res = md.render(src);
 
 console.log(res);  // eslint-disable-line
 
