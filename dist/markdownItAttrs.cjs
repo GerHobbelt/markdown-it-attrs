@@ -1,4 +1,4 @@
-/*! markdown-it-attrs 4.0.0-22 https://github.com//GerHobbelt/markdown-it-attrs @license MIT */
+/*! markdown-it-attrs 4.0.0-23 https://github.com//GerHobbelt/markdown-it-attrs @license MIT */
 
 'use strict';
 
